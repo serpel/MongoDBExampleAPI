@@ -1,9 +1,9 @@
 var express = require('express');
 var bodyParser = require('body-parser');
 const mongoose = require('mongoose');
-mongoose.connect('mongodb://localhost:27017/cuentas', {useNewUrlParser: true});
+mongoose.connect('mongodb://localhost:27017/banco', {useNewUrlParser: true});
 
-const Cuenta = mongoose.model('Cuenta', { Cedula: String, Nombre: String, Saldo: Number });
+const Cuenta = mongoose.model('cuenta', { Cedula: String, Nombre: String, Saldo: Number });
 
 var app = express();
 app.use(bodyParser());
@@ -12,44 +12,56 @@ app.listen(8080, () => {
     console.log("hey estoy corriendo");
 });
 
+app.post('/api/v1/cuenta/crear', (req, res, next) => {
+
+    Cuenta.findOne({ Cedula: req.body.Cedula }, function (err, cuenta) {
+        if (err) return handleError(err);
+
+        if(cuenta != null) {
+            res.status(400);
+            res.send({ success : false, message: "Cuenta existe!", cuenta: cuenta });
+        } else
+            next();
+    });
+
+});
+
 app.post('/api/v1/cuenta/crear', (req, res) => {
 
-    const result = Cuenta.findOne({ Cedula: req.body.Cedula });
+    const nuevaCuenta = new Cuenta({ Cedula: req.body.Cedula, Nombre: req.body.Nombre, Saldo: 0.0 });
 
-    if(result == null)
-    {
-        const nuevaCuenta = new Cuenta({ Cedula: req.body.Cedula, Nombre: req.body.Nombre, Saldo: 0.0 });
-
-        nuevaCuenta.save(function (err) {
-            if (err) return handleError(err);
-        });
+    nuevaCuenta.save(function (err) {
+        if (err) return handleError(err);
+    });
     
-        res.send({ success : true, cuenta: nuevaCuenta });
-    }
-    else
-    {
-        res.send({ success : false, message: "Cuenta no existe!", cuenta: result.cuenta });
-    }
+    res.send({ success : true, cuenta: { Cedula: nuevaCuenta.Cedula, Nombre: nuevaCuenta.Nombre }});   
 });
+
 
 app.post('/api/v1/cuenta/retirar', (req, res) => {
 
     var Cantidad = req.body.Cantidad || 0;
 
-    const result = Cuenta.findOne({ Cedula: req.body.Cedula }, function (err, doc) {
+    Cuenta.findOne({ Cedula: req.body.Cedula }, function (err, doc) {
         if (err) console.log(err);
-        doc.Saldo = doc.Saldo <= Cantidad ? doc.Saldo - Cantidad : doc.Saldo
-        doc.save();   
-    });
+        if(doc != null)
+        {
+            var result = doc.Saldo - Cantidad;
 
-    if(result == null)
-    {
-        res.send({ success : false, message: "No puedo retirar de una cuenta q no existe!", cuenta: result.cuenta });
-    }
-    else
-    {
-        res.send({ success : true, message: "Se ha retirado de manera exitosa el pisto!", cuenta: result.cuenta });
-    }
+            if(result >= 0)
+            {
+                doc.Saldo = result;
+                doc.save();
+                res.send({ success : true, message: "Se ha retirado de manera exitosa el pisto!", cuenta: doc });   
+            }  else {
+                res.status(400);
+                res.send({ success : false, message: "No puedo retirar porque no hay saldo!" });        
+            }
+        } else {
+            res.status(400);
+            res.send({ success : false, message: "No puedo retirar de una cuenta q no existe!" });     
+        }  
+    });
 });
 
 
@@ -57,18 +69,35 @@ app.post('/api/v1/cuenta/depositar', (req, res) => {
 
     var cantidad = req.body.Cantidad || 0;
 
-    const result = Cuenta.findOne({ Cedula: req.body.Cedula }, function (err, doc) {
+    Cuenta.findOne({ Cedula: req.body.Cedula }, function (err, doc) {
         if (err) console.log(err);
-        doc.Saldo = doc.Saldo + cantidad;
-        doc.save();   
+        if(doc != null){
+            doc.Saldo = doc.Saldo + cantidad;
+            doc.save();  
+            res.send({ success : true, message: "Se ha depositadp de manera exitosa el pisto!", cuenta: doc });  
+        } else {
+            res.status(400);
+            res.send({ success : false, message: "No puedo retirar de una cuenta q no existe!"});       
+        }
     });
-
-    if(result == null)
-    {
-        res.send({ success : false, message: "No puedo retirar de una cuenta q no existe!", cuenta: result.cuenta });
-    }
-    else
-    {
-        res.send({ success : true, message: "Se ha depositadp de manera exitosa el pisto!", dinero: cantidad });
-    }
 });
+
+app.delete('/api/v1/cuenta/eliminar', (req, res) => {
+
+    Cuenta.findOne({ Cedula: req.body.Cedula }, function (err, doc) {
+        if (err) console.log(err);
+        
+        if(doc != null)
+        {
+            doc.delete();
+            res.send({ success : true, message: "Se ha eliminado la cuenta"});
+        } else {
+            res.status(400);
+            res.send({ success : false, message: "No Se encontro la cuenta" });
+        } 
+    });
+});
+
+function handleError(err){
+    console.log(err);
+}
