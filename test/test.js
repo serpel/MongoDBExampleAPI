@@ -1,11 +1,13 @@
 var Calculadora = require('../index');
 var assert = require('assert');
 var chai = require('chai');
+const chaiAsPromised = require("chai-as-promised");
 var should = require('chai').should();
 var chaiHttp = require('chai-http');
 var server = 'http://localhost:8080';
 
 chai.use(chaiHttp);
+chai.use(chaiAsPromised);
 //
 
 describe('Banco', function(){
@@ -24,8 +26,7 @@ describe('Banco', function(){
                 res.body.should.have.property('success').be.equal(true);
                 done();
             }).catch((err) => {
-                done();
-                throw err;
+                done(err);
             });
         })
         it('CrearCuenta_SiExisteLacuenta_RetornaSucessFalse', (done) => {
@@ -37,8 +38,7 @@ describe('Banco', function(){
                 res.body.should.have.property('success').be.equal(false);
                 done();
             }).catch((err) => {
-                done();
-                throw err;
+                done(err);
             });
         })
     });
@@ -61,8 +61,7 @@ describe('Banco', function(){
                 res.body.should.have.property('success').be.equal(true);
                 done();
             }).catch((err) => {
-                done();
-                throw err;
+                done(err);
             });
         })
         it('AbonarCuenta_NoExisteLaCuenta_RetornaSucessFalse', (done) => {
@@ -75,17 +74,16 @@ describe('Banco', function(){
                 res.body.should.have.property('success').be.equal(false);
                 done();
             }).catch((err) => {
-                done();
-                throw err;
+                done(err);
             });
         })
     });
     describe('Retirar cuenta', function(){
         var retiro = {
             Cedula: '0506199100519',
-            Cantidad: 600
+            Cantidad: 100
         };
-        it('RetirarCuenta_LaExisteLaCuentaYHaySaldodisponibleParaRetiro_RetornaSucessTrue', (done) => {
+        it('RetirarCuenta_LaExisteLaCuentaHaySaldodisponible1erIntento_RetornaSucessTrue', (done) => {
             chai.request(server)
             .post('/api/v1/cuenta/retirar')
             .send(retiro).then((res)=>{
@@ -94,14 +92,42 @@ describe('Banco', function(){
                 res.body.should.have.property('success').be.equal(true);
                 done();
             }).catch((err) => {
+                done(err);
+            });
+        })
+        it('RetirarCuenta_LaExisteLaCuentaHaySaldodisponible2doIntento_RetornaSucessTrue', (done) => {
+            chai.request(server)
+            .post('/api/v1/cuenta/retirar')
+            .send(retiro).then((res)=>{
+                res.should.have.status(200);
+                res.body.should.have.property('success');
+                res.body.should.have.property('success').be.equal(true);
                 done();
-                throw err;
+            }).catch((err) => {
+                done(err);
+            });
+        })
+        it('RetirarCuenta_LaExisteLaCuentaHaySaldodisponible3erIntento_RetornaSucessFalse', (done) => {
+            chai.request(server)
+            .post('/api/v1/cuenta/retirar')
+            .send(retiro).then((res)=>{
+                    res.should.have.status(400);
+                    res.body.should.have.property('success');
+                    res.body.should.have.property('success').be.equal(false);
+                    res.body.should.have.property('numeroRetiros');
+                    res.body.should.have.property('numeroRetiros').be.gt(2);
+                    done();
+            }).catch((err) => {
+                done(err);
             });
         })
         it('RetirarCuenta_LaExisteLaCuentaYNoHaySaldodisponibleParaRetiro_RetornaSucessFalse', (done) => {
             chai.request(server)
             .post('/api/v1/cuenta/retirar')
-            .send(retiro)
+            .send({
+                Cedula: '0506199100519',
+                Cantidad: 70000
+            })
             .then((res)=>{
                 res.should.have.status(400);
                 res.body.should.have.property('success');
@@ -109,8 +135,7 @@ describe('Banco', function(){
                 //res.body.should.have.property('saldo').be.gt(0);
                 done();
             }).catch((err) => {
-                done();
-                throw err;
+                done(err);
             });
         })
     });
@@ -127,8 +152,7 @@ describe('Banco', function(){
                 res.body.should.have.property('success').be.equal(true);
                 done();
             }).catch((err) => {
-                done();
-                throw err;
+                done(err);
             });
         })
         it('RetirarCuenta_LaExisteNoLaCuenta_RetornaSucessFalse', (done) => {
@@ -141,8 +165,7 @@ describe('Banco', function(){
                 res.body.should.have.property('success').be.equal(false);              
                 done();
             }).catch((err) => {
-                done();
-                throw err;
+                done(err);
             });
         })
     });

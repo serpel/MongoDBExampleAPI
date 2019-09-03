@@ -3,7 +3,7 @@ var bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 mongoose.connect('mongodb://localhost:27017/banco', {useNewUrlParser: true});
 
-const Cuenta = mongoose.model('cuenta', { Cedula: String, Nombre: String, Saldo: Number });
+const Cuenta = mongoose.model('cuenta', { Cedula: String, Nombre: String, Saldo: Number, FechaCreacion: Date, FechaModificacion: Date, CantidadRetiros: Number });
 
 var app = express();
 app.use(bodyParser());
@@ -28,7 +28,7 @@ app.post('/api/v1/cuenta/crear', (req, res, next) => {
 
 app.post('/api/v1/cuenta/crear', (req, res) => {
 
-    const nuevaCuenta = new Cuenta({ Cedula: req.body.Cedula, Nombre: req.body.Nombre, Saldo: 0.0 });
+    const nuevaCuenta = new Cuenta({ Cedula: req.body.Cedula, Nombre: req.body.Nombre, Saldo: 0.0, FechaCreacion: new Date(), FechaModificacion: new Date(), CantidadRetiros: 0 });
 
     nuevaCuenta.save(function (err) {
         if (err) return handleError(err);
@@ -50,9 +50,24 @@ app.post('/api/v1/cuenta/retirar', (req, res) => {
 
             if(result >= 0)
             {
-                doc.Saldo = result;
-                doc.save();
-                res.send({ success : true, message: "Se ha retirado de manera exitosa el pisto!", cuenta: doc });   
+                if(doc.CantidadRetiros > 2)
+                {
+                    res.status(400);
+                    res.send({ success : false, message: "No puedo retirar porque exedi la cantidad maxima de retiros!", numeroRetiros: doc.CantidadRetiros  });                   
+                } else { 
+                    doc.Saldo = result;
+                   
+                    var tiempoms =  new Date() - doc.FechaModificacion;
+                    var diffMins = Math.round(((tiempoms % 86400000) % 3600000) / 60000);
+                    if(diffMins <= 1)
+                        doc.CantidadRetiros += 1;
+                    else {
+                        doc.CantidadRetiros = 0;
+                        doc.FechaModificacion = new Date();
+                    }    
+                    doc.save();
+                    res.send({ success : true, message: "Se ha retirado de manera exitosa el pisto!", cuenta: doc });   
+                }
             }  else {
                 res.status(400);
                 res.send({ success : false, message: "No puedo retirar porque no hay saldo!" });        
