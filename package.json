@@ -24,6 +24,6 @@
     "chai-http": "^4.3.0",
     "express": "^4.17.1",
     "mocha": "^6.2.0",
-    "mongoose": "^5.6.9"
+    "mongoose": "^5.7.5"
   }
 }
